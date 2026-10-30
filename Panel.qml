@@ -665,6 +665,11 @@ Panel {
     }
   }
 
+  // the panel's height follows its content smoothly while open (an output
+  // or a stream coming and going)
+  property real panelHeight: panelColumn.implicitHeight
+  Behavior on panelHeight { enabled: root.opened; NumberAnimation { duration: 280; easing.type: Easing.Bezier; easing.bezierCurve: Anatomy.ease } }
+
   KeyboardPanel {
     id: panel
     anchorItem: button
@@ -673,7 +678,7 @@ Panel {
     open: root.opened
     focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(380))
-    contentHeight: panel.fittedContentHeight(panelColumn.implicitHeight, Style.space(560))
+    contentHeight: panel.fittedContentHeight(root.panelHeight, Style.space(560))
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -720,96 +725,38 @@ Panel {
           width: scrollArea.availableWidth
           spacing: Style.space(14)
 
-          // ---------- Hero: speaker icon · title/status ----------
-          Item {
+          // ---------- Hero: sound on or muted, said in words ----------
+          // The whole row is the switch (header cursor target too). Checked
+          // means something is still audible, so muting everything reads as
+          // switching sound off; a muted output turns the row red and the
+          // waves give way to the cross.
+          StateHero {
             id: heroItem
+            readonly property real volume: outputSlider.dragging ? outputSlider.liveValue : root.outputVolume
+            readonly property bool headphones: !!root.sink && root.isHeadphones(root.sink)
             width: parent.width
-            implicitHeight: Math.max(heroIcon.implicitHeight, heroLabels.implicitHeight, powerSwitch.implicitHeight)
-
-            // Status only — the switch owns muting, mouse and keyboard alike.
-            Item {
-              id: heroIcon
-              readonly property var paths: root.outputIconPaths(
-                outputSlider.dragging ? outputSlider.liveValue : root.outputVolume)
-              implicitWidth: Style.font.display
-              implicitHeight: Style.font.display
-              anchors.left: parent.left
-              anchors.verticalCenter: parent.verticalCenter
-
-              AnatomyIcon {
-                anchors.fill: parent
-                visible: heroIcon.paths.off !== ""
-                path: heroIcon.paths.off
-                size: Style.font.display
-                strokeWidth: 1.3
-                color: Anatomy.lo
-              }
-
-              AnatomyIcon {
-                anchors.fill: parent
-                path: heroIcon.paths.on
-                size: Style.font.display
-                strokeWidth: 1.3
-                color: root.outputMuted ? Anatomy.mid : Anatomy.hi
-              }
-            }
-
-            // Compact on/off switch on the trailing edge of the hero, and the
-            // header's only cursor target. Checked means something is still
-            // audible, so muting everything reads as switching audio off.
-            ToggleSwitch {
-              id: powerSwitch
-              checked: root.anyAudible
-              hasCursor: root.headerHasCursor
-              foreground: root.bar.foreground
-              anchors.right: parent.right
-              anchors.verticalCenter: parent.verticalCenter
-              onHovered: function(on) { if (on) root.setHeaderCursor() }
-              onToggled: root.toggleAllMuted()
-
-              PanelToolTip {
-                visible: powerSwitch.containsMouse
-                text: root.toggleHint
-                fontFamily: Anatomy.sans
-              }
-            }
-
-            Column {
-              id: heroLabels
-              anchors.left: heroIcon.right
-              anchors.leftMargin: Style.space(14)
-              anchors.right: parent.right
-              anchors.rightMargin: powerSwitch.width + Style.space(12)
-              anchors.verticalCenter: parent.verticalCenter
-              spacing: Style.space(2)
-
-              Text {
-                textFormat: Text.PlainText
-                text: Strings.T("Som")
-                color: Anatomy.strong
-                font.family: Anatomy.sans
-                font.pixelSize: Style.font.title
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-                width: parent.width
-              }
-
-              Text {
-                id: heroLabel
-                textFormat: Text.PlainText
-                text: root.outputVolumeName(
-                  outputSlider.dragging ? outputSlider.liveValue : root.outputVolume,
-                  root.outputMuted
-                ).toUpperCase()
-                color: Anatomy.muted
-                font.family: Anatomy.mono
-                font.pixelSize: Style.font.caption
-                font.weight: Font.DemiBold
-                font.letterSpacing: Anatomy.labelSpacing
-                elide: Text.ElideRight
-                width: parent.width
-              }
-            }
+            title: Strings.T("Som")
+            stateText: !root.hasOutput ? Strings.T("SEM SAÍDA")
+              : !root.anyAudible ? Strings.T("MUDO")
+              : root.outputMuted ? Strings.T("SAÍDA MUDA") : Strings.T("LIGADO")
+            detail: !root.hasOutput ? Strings.T("Nenhuma saída de som encontrada.")
+              : !root.anyAudible ? Strings.T("Tudo em silêncio: saída e microfone.")
+              : root.outputMuted ? Strings.T("A saída está muda; o microfone segue ligado.")
+              : root.outputVolumeName(volume, false) + Strings.T(", por ") + root.nodeLabel(root.volumeSink)
+            tooltip: root.toggleHint
+            iconPath: headphones ? Anatomy.icons.headphones : Anatomy.icons.speaker
+            layers: [
+              { d: Anatomy.icons.wave1, a: headphones || root.outputMuted || volume <= 0 ? 0 : 1 },
+              { d: Anatomy.icons.wave2, a: headphones || root.outputMuted || volume <= 0 ? 0 : volume >= 0.67 ? 1 : volume >= 0.34 ? 0.3 : 0 }
+            ]
+            markPath: Anatomy.icons.muteCross
+            markOrigin: Qt.point(18.5, 12)
+            marked: root.outputMuted && !headphones
+            checked: root.anyAudible
+            alert: root.hasOutput && root.outputMuted
+            hasCursor: root.headerHasCursor
+            onHovered: function(on) { if (on) root.setHeaderCursor() }
+            onToggled: root.toggleAllMuted()
           }
 
           // ---- Output devices ----
