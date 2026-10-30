@@ -18,6 +18,15 @@ Volume slider, output picker and per-app mixer, drawn with thin stroke icons and
 - 🔄 **Drop-in.** It's Omarchy's own `omarchy.audio` underneath (same behaviour, same
   shortcuts and IPC): enabling it takes the original's place on the bar.
 
+## See it
+
+Recorded on a real desktop, mouse and clicks included. The panel follows the
+system language; this take is in Portuguese.
+
+**Volume and mute**: click the slider and the bar icon's waves follow; mute turns the state row and the icon red, and says so in words.
+
+![Volume and mute](assets/sound.gif)
+
 ## Requirements
 
 [Island Kit](https://github.com/hugorolimf/omarchy-island-kit): the panel is drawn with it.
